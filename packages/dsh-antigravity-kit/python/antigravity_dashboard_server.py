@@ -25,6 +25,16 @@ PORT = int(os.environ.get("ANTIGRAVITY_DASHBOARD_PORT", "8765"))
 CREATE_NO_WINDOW = 0x08000000
 
 
+def _hidden_kwargs() -> dict:
+    """Suppress the console window Windows would otherwise flash for a child process."""
+    if os.name != "nt":
+        return {}
+    startupinfo = subprocess.STARTUPINFO()
+    startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+    startupinfo.wShowWindow = subprocess.SW_HIDE
+    return {"creationflags": CREATE_NO_WINDOW, "startupinfo": startupinfo}
+
+
 def _interpreter() -> str:
     """Prefer a project virtualenv, then the interpreter running this service."""
     venv = BASE_DIR / ".venv" / "Scripts" / "python.exe"
@@ -52,7 +62,7 @@ def run_bridge(args: list[str], timeout: float) -> dict:
         encoding="utf-8",
         errors="replace",
         timeout=timeout,
-        creationflags=CREATE_NO_WINDOW,
+        **_hidden_kwargs(),
     )
     if proc.returncode != 0:
         detail = (proc.stderr or proc.stdout or "bridge failed").strip()

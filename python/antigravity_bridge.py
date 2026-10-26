@@ -44,6 +44,20 @@ def _ensure_env() -> None:
         os.environ["PATH"] = r"C:\Windows\System32;C:\Windows"
 
 
+
+
+CREATE_NO_WINDOW = 0x08000000
+
+
+def _hidden_kwargs() -> dict[str, Any]:
+    """Suppress the console window Windows would otherwise flash for a child process."""
+    if os.name != "nt":
+        return {}
+    startupinfo = subprocess.STARTUPINFO()
+    startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+    startupinfo.wShowWindow = subprocess.SW_HIDE
+    return {"creationflags": CREATE_NO_WINDOW, "startupinfo": startupinfo}
+
 def _powershell_json(script: str) -> Any:
     proc = subprocess.run(
         [POWERSHELL, "-NoProfile", "-NonInteractive", "-Command", script],
@@ -52,6 +66,7 @@ def _powershell_json(script: str) -> Any:
         encoding="utf-8",
         errors="replace",
         timeout=30,
+        **_hidden_kwargs(),
     )
     raw = (proc.stdout or "").lstrip("\ufeff").strip()
     if not raw:
@@ -174,6 +189,7 @@ def _test_port(target: dict[str, Any], port: int) -> bool:
             errors="replace",
             timeout=8,
             env=env,
+            **_hidden_kwargs(),
         )
     except Exception:
         return False
@@ -373,6 +389,7 @@ def _send_message(
         errors="replace",
         timeout=60,
         env=env,
+        **_hidden_kwargs(),
     )
     output = (proc.stdout or "").strip()
     if not output:
@@ -554,6 +571,7 @@ def main() -> int:
             errors="replace",
             timeout=60,
             env=env,
+            **_hidden_kwargs(),
         )
         output = (proc.stdout or "").strip()
         if not output:

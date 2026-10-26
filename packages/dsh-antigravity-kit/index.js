@@ -45,6 +45,7 @@ export function apply(ctx) {
       detached: true,
       stdio: 'ignore',
       windowsHide: true,
+      creationFlags: 0x08000000,
     });
     child.on('error', () => {
       // A missing interpreter is reported by the page as an unreachable service.
