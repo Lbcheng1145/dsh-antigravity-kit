@@ -7,7 +7,8 @@ window.__ModuleLoader__.load({
     const PANEL_ID = 'antigravity';
     
 
-    const API_BASE = 'http://127.0.0.1:8765';
+    const API_PORT = (typeof window !== 'undefined' && window.__ANTIGRAVITY_PORT__) || 8765;
+    const API_BASE = 'http://127.0.0.1:' + API_PORT;
 
     async function request(path, options) {
       const response = await fetch(API_BASE + path, options);

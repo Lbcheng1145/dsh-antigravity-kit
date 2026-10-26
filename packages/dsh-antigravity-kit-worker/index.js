@@ -1,18 +1,31 @@
-const API_BASE = 'http://127.0.0.1:8765';
+const PORT = process.env.ANTIGRAVITY_DASHBOARD_PORT || '8765';
+const API_BASE = 'http://127.0.0.1:' + PORT;
 
 export const name = 'antigravity-worker';
 export const inject = ['tools', 'systemPrompt'];
 
+/** Retry briefly: the dashboard service may still be starting up. */
 async function request(path, options) {
-  const response = await fetch(API_BASE + path, options);
-  let data;
-  try {
-    data = await response.json();
-  } catch {
-    throw new Error('Antigravity 本地服务返回了无效响应');
+  let lastError;
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    try {
+      const response = await fetch(API_BASE + path, options);
+      let data;
+      try {
+        data = await response.json();
+      } catch {
+        throw new Error('Antigravity 本地服务返回了无效响应');
+      }
+      if (!response.ok) throw new Error(data.error || 'Antigravity 本地服务请求失败');
+      return data;
+    } catch (error) {
+      lastError = error;
+      if (attempt < 19) await new Promise((resolve) => setTimeout(resolve, 500));
+    }
   }
-  if (!response.ok) throw new Error(data.error || 'Antigravity 本地服务请求失败');
-  return data;
+  throw new Error(
+    'Antigravity 本地服务不可达（' + API_BASE + '）：' + (lastError && lastError.message ? lastError.message : lastError),
+  );
 }
 
 function sessionWorkspace(exec) {

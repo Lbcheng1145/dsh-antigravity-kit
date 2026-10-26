@@ -19,11 +19,21 @@ from urllib.parse import parse_qs, urlparse
 
 BASE_DIR = Path(__file__).resolve().parent
 BRIDGE = BASE_DIR / "antigravity_bridge.py"
-PYTHON = BASE_DIR / ".venv" / "Scripts" / "python.exe"
 LOG = BASE_DIR / "dashboard-server.log"
-HOST = "127.0.0.1"
-PORT = 8765
+HOST = os.environ.get("ANTIGRAVITY_DASHBOARD_HOST", "127.0.0.1")
+PORT = int(os.environ.get("ANTIGRAVITY_DASHBOARD_PORT", "8765"))
 CREATE_NO_WINDOW = 0x08000000
+
+
+def _interpreter() -> str:
+    """Prefer a project virtualenv, then the interpreter running this service."""
+    venv = BASE_DIR / ".venv" / "Scripts" / "python.exe"
+    if venv.is_file():
+        return str(venv)
+    return sys.executable
+
+
+PYTHON = _interpreter()
 
 
 def _log(message: str) -> None:

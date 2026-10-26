@@ -4,49 +4,39 @@
 
 不需要 Gemini API Key：任务通过 Antigravity 自带的 `agentapi` 创建真实对话，复用客户端登录态。
 
-> 本项目名为 **dsh-antigravity-kit**，包含页面插件与子代理 worker 两个包。
-
 ## 组成
 
 | 包 | 作用 |
 |---|---|
-| `packages/dsh-antigravity-kit` | DSH 页面插件：额度面板、模型选择、任务执行 |
-| `packages/dsh-antigravity-kit-worker` | 子代理 worker：给父级和子代理提供 `antigravity_run` / `antigravity_quota` 工具 |
-| `python/` | 本机服务：桥接 Antigravity `agentapi` 与额度接口 |
+| `packages/dsh-antigravity-kit` | 页面插件：额度面板、模型选择、任务执行；内含 Python 服务 |
+| `packages/dsh-antigravity-kit-worker` | 子代理 worker：提供 `antigravity_run` / `antigravity_quota` 工具 |
 
-页面通过 `http://127.0.0.1:8765` 与本机服务通信，不接入 DSH 的共享 remote 服务，避免影响账户与设置页。
+页面通过 `http://127.0.0.1:8765` 与本机服务通信，不接入 DSH 共享 remote 服务，避免影响账户与设置页。
 
 ## 前置条件
 
 - Windows
 - 正在运行的 Antigravity 客户端（已登录）
-- Python 3.10+
+- Python 3.10+（**无需安装任何第三方包**，只用标准库）
 
 ## 安装
 
-### 1. Python 环境
+### 方式一：一键脚本
 
 ```bat
-python -m venv .venv
-.venv\Scripts\python -m pip install httpx
+install.cmd
 ```
 
-把 `python/` 下的两个脚本放到一个目录，例如 `%LOCALAPPDATA%\AntigravitySDK`，并让 `.venv` 位于同一目录。
+脚本会检测 Python 和 DSH，并安装两个插件。
 
-设置环境变量（可选，默认会自动探测）：
+### 方式二：手动
 
 ```bat
-setx ANTIGRAVITY_SDK_HOME "%LOCALAPPDATA%\AntigravitySDK"
+dsh plugin --profile desktop add <仓库绝对路径>\packages\dsh-antigravity-kit
+dsh plugin --profile desktop add <仓库绝对路径>\packages\dsh-antigravity-kit-worker
 ```
 
-### 2. DSH 插件
-
-```bat
-dsh plugin --profile desktop add <本仓库 packages/dsh-antigravity-kit 的绝对路径>
-dsh plugin --profile desktop add <本仓库 packages/dsh-antigravity-kit-worker 的绝对路径>
-```
-
-然后重启 DSH。
+装完**完全退出并重新打开 DSH**。
 
 ## 使用
 
@@ -69,9 +59,28 @@ dsh plugin --profile desktop add <本仓库 packages/dsh-antigravity-kit-worker 
 ### 命令行
 
 ```bat
-python antigravity_bridge.py --workspace C:\projects\demo "任务内容"
-python antigravity_bridge.py --quota
+python packages\dsh-antigravity-kit\python\antigravity_bridge.py --workspace C:\projects\demo "任务内容"
+python packages\dsh-antigravity-kit\python\antigravity_bridge.py --quota
 ```
+
+## 配置
+
+全部可选，默认即可工作：
+
+| 环境变量 | 说明 |
+|---|---|
+| `ANTIGRAVITY_DASHBOARD_PORT` | 本机服务端口，默认 8765 |
+| `ANTIGRAVITY_SDK_HOME` | Python 服务所在目录；默认使用包内 `python/` |
+| `ANTIGRAVITY_PYTHONW` | 指定解释器；默认用包内 venv，其次系统 `pythonw.exe` |
+
+## 排查
+
+| 现象 | 处理 |
+|---|---|
+| 侧边栏没有图标 | 确认插件已安装且已重启 DSH |
+| 页面提示服务不可达 | 确认 Antigravity 客户端已登录并运行 |
+| 额度为空 | 客户端未登录，或 language server 未就绪，稍后刷新 |
+| 端口被占用 | 设置 `ANTIGRAVITY_DASHBOARD_PORT` 换端口 |
 
 ## 已知限制
 

@@ -22,7 +22,8 @@
     "client.js",
     "cordis.patch.yml",
     "locale/*.json",
-    "icon.svg"
+    "icon.svg",
+    "python/*.py"
   ],
   "dsh": {
     "bundle": {

@@ -21,6 +21,7 @@ import sys
 import time
 import traceback
 import urllib.parse
+import urllib.request
 from pathlib import Path
 from typing import Any
 
@@ -317,24 +318,23 @@ def _wait_for_text(
 
 def _quota(target: dict[str, Any]) -> dict[str, Any]:
     """Read the account's model quota summary from the local language server."""
-    import httpx
-
     url = (
         f"http://127.0.0.1:{target['port']}/"
         "exa.language_server_pb.LanguageServerService/RetrieveUserQuotaSummary"
     )
-    response = httpx.post(
+    body = json.dumps({}).encode("utf-8")
+    request = urllib.request.Request(
         url,
+        data=body,
+        method="POST",
         headers={
             "x-codeium-csrf-token": target["token"],
             "Content-Type": "application/json",
             "Accept": "application/json",
         },
-        json={},
-        timeout=20,
     )
-    response.raise_for_status()
-    payload = response.json()
+    with urllib.request.urlopen(request, timeout=20) as response:
+        payload = json.loads(response.read().decode("utf-8"))
     data = payload.get("response") or {}
     return {
         "groups": data.get("groups") or [],
