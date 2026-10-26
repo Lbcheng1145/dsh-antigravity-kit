@@ -1,0 +1,20 @@
+{
+  "name": "dsh-antigravity-worker",
+  "version": "1.2.0",
+  "description": "Subagent-facing worker that delegates tasks to the running Antigravity client.",
+  "type": "module",
+  "license": "MIT",
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "antigravity",
+    "subagent",
+    "worker"
+  ],
+  "exports": {
+    ".": "./index.js"
+  },
+  "files": [
+    "index.js"
+  ]
+}
