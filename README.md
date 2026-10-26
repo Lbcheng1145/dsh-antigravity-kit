@@ -56,7 +56,16 @@ dsh plugin --profile desktop add <仓库绝对路径>\packages\dsh-antigravity-k
 - `antigravity_run`：把任务交给 Antigravity 执行，返回 `conversation_id`
 - `antigravity_quota`：查询账户模型额度
 
-**多轮对话**：把上一次返回的 `conversation_id` 作为 `conversation_id` 参数再调用 `antigravity_run`，即可在同一 Antigravity 会话里继续追问，上下文会保留。
+**会话复用（默认）**：所有调用默认复用同一个标题为 `DSH Worker` 的 Antigravity 会话，
+不会每执行一次就在客户端里新增一条记录。
+
+**多轮对话**：复用会话意味着上下文连续保留。需要独立上下文时：
+
+- 工具传 `new_session: true`
+- 页面点「新会话」
+- CLI 加 `--new-session`
+
+**指定会话**：传 `conversation_id` 可接入任意已存在的会话。
 
 ### 命令行
 

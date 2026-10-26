@@ -115,6 +115,7 @@ class Handler(BaseHTTPRequestHandler):
             model = str(body.get("model") or "flash")
             timeout = float(body.get("timeoutSeconds") or 300)
             conversation_id = str(body.get("conversationId") or "").strip()
+            new_session = bool(body.get("newSession"))
             args = [
                 "--workspace", workspace,
                 "--model", model,
@@ -123,6 +124,8 @@ class Handler(BaseHTTPRequestHandler):
             ]
             if conversation_id:
                 args += ["--conversation", conversation_id]
+            elif new_session:
+                args += ["--new-session"]
             args.append(prompt)
             data = run_bridge(args, timeout + 30)
             self._json(200, {

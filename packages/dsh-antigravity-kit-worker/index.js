@@ -94,7 +94,8 @@ export function apply(ctx) {
         workspace: { type: 'string', description: 'Absolute workspace directory. Defaults to the current session workspace.' },
         model: { type: 'string', enum: ['flash_lite', 'flash', 'pro'], description: 'Antigravity model tier. Defaults to flash; use pro for harder coding work.' },
         timeout_seconds: { type: 'number', description: 'Maximum wait in seconds. Defaults to 300.' },
-        conversation_id: { type: 'string', description: 'Continue an existing Antigravity conversation to keep its context. Omit to start a new one.' },
+        conversation_id: { type: 'string', description: 'Continue an existing Antigravity conversation to keep its context. Omit to use the shared DSH Worker conversation.' },
+        new_session: { type: 'boolean', description: 'Start a brand-new Antigravity conversation instead of reusing the shared one. Only set this when the user explicitly wants a separate conversation.' },
       },
     },
     output: RUN_OUTPUT,
@@ -111,6 +112,7 @@ export function apply(ctx) {
             model: args.model || 'flash',
             timeoutSeconds: timeout,
             conversationId: args.conversation_id || '',
+            newSession: args.new_session === true,
           }),
         });
         return { ok: true, conversation_id: data.conversation_id || '', text: data.text || '' };

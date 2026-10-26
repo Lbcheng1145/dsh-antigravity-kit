@@ -332,6 +332,30 @@ def _wait_for_text(
         "任务可能仍在运行，可到 Antigravity 界面查看。"
     )
 
+
+
+REUSE_TITLE = "DSH Worker"
+
+
+def _find_conversation_by_title(title: str, app_data_dir: str) -> str:
+    """Return the newest conversation whose stored title equals ``title``."""
+    db = Path.home() / ".gemini" / app_data_dir / "conversation_summaries.db"
+    if not db.is_file():
+        return ""
+    try:
+        con = sqlite3.connect(f"file:{db.as_posix()}?mode=ro", uri=True, timeout=2)
+        try:
+            row = con.execute(
+                "select conversation_id from conversation_summaries "
+                "where title = ? order by last_modified_time desc limit 1",
+                (title,),
+            ).fetchone()
+        finally:
+            con.close()
+    except sqlite3.Error:
+        return ""
+    return str(row[0]) if row else ""
+
 def _send_message(
     target: dict[str, Any],
     env: dict[str, str],
@@ -440,6 +464,8 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--no-wait", action="store_true", help="只创建对话，不等待回复")
     parser.add_argument("--target", help="指定 app_data_dir，如 antigravity 或 antigravity-ide")
     parser.add_argument("--conversation", help="向已有会话继续发送消息（多轮）")
+    parser.add_argument("--reuse", action="store_true", help="复用固定标题的会话，不新建（默认行为）")
+    parser.add_argument("--new-session", action="store_true", help="强制新建会话")
     parser.add_argument("--quota", action="store_true", help="查询账户模型额度")
     parser.add_argument("--list", action="store_true", help="列出检测到的 Antigravity 实例")
     parser.add_argument("--debug", action="store_true", help="出错时打印完整堆栈")
@@ -500,6 +526,10 @@ def main() -> int:
         target, project_id = _pick_target(workspace, args.target)
         env = _env_for(target, project_id)
         env["ANTIGRAVITY_LS_ADDRESS"] = f"127.0.0.1:{target['port']}"
+        if not args.conversation and not args.new_session:
+            existing = _find_conversation_by_title(args.title or REUSE_TITLE, target["app_data_dir"])
+            if existing:
+                args.conversation = existing
         if args.conversation:
             result = _send_message(target, env, args.conversation, prompt, args.timeout)
             if args.json:
@@ -507,7 +537,7 @@ def main() -> int:
             else:
                 print(result["text"])
             return 0
-        title = args.title or ("Antigravity: " + prompt.replace("\n", " ")[:50])
+        title = args.title or REUSE_TITLE
         command = [
             target["exe"],
             "agentapi",

@@ -35,11 +35,11 @@ window.__ModuleLoader__.load({
       return withServerRetry(() => request('/quota?workspace=' + encodeURIComponent(workspace)));
     }
 
-    async function apiRun(prompt, workspace, model, timeoutSeconds, conversationId) {
+    async function apiRun(prompt, workspace, model, timeoutSeconds, conversationId, newSession) {
       return request('/run', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt, workspace, model, timeoutSeconds, conversationId: conversationId || '' }),
+        body: JSON.stringify({ prompt, workspace, model, timeoutSeconds, conversationId: conversationId || '', newSession: newSession === true }),
       });
     }
 
@@ -256,6 +256,7 @@ window.__ModuleLoader__.load({
       const [running, setRunning] = React.useState(false);
       const [result, setResult] = React.useState(null);
       const [conversationId, setConversationId] = React.useState('');
+      const [forceNew, setForceNew] = React.useState(false);
       const [error, setError] = React.useState('');
       const [copied, setCopied] = React.useState(false);
 
@@ -282,9 +283,9 @@ window.__ModuleLoader__.load({
         setResult(null);
         setError('');
         try {
-          const data = await apiRun(prompt.trim(), workspace, model, 300, conversationId);
+          const data = await apiRun(prompt.trim(), workspace, model, 300, forceNew ? '' : conversationId, forceNew);
           setResult(data);
-          if (data && data.conversation_id) setConversationId(data.conversation_id);
+          if (data && data.conversation_id) { setConversationId(data.conversation_id); setForceNew(false); }
         } catch (err) {
           setError(err && err.message ? err.message : String(err));
         } finally {
@@ -382,7 +383,7 @@ window.__ModuleLoader__.load({
               h('button', {
                 type: 'button',
                 style: s.secondary,
-                onClick: () => { setConversationId(''); setResult(null); setError(''); },
+                onClick: () => { setConversationId(''); setForceNew(true); setResult(null); setError(''); },
                 disabled: running || !conversationId,
                 title: conversationId || '',
               }, t('newSession')),
