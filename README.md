@@ -53,14 +53,19 @@ dsh plugin --profile desktop add <仓库绝对路径>\packages\dsh-antigravity-k
 
 父级与子代理都可使用：
 
-- `antigravity_run`：把任务交给 Antigravity 执行
+- `antigravity_run`：把任务交给 Antigravity 执行，返回 `conversation_id`
 - `antigravity_quota`：查询账户模型额度
+
+**多轮对话**：把上一次返回的 `conversation_id` 作为 `conversation_id` 参数再调用 `antigravity_run`，即可在同一 Antigravity 会话里继续追问，上下文会保留。
 
 ### 命令行
 
 ```bat
 python packages\dsh-antigravity-kit\python\antigravity_bridge.py --workspace C:\projects\demo "任务内容"
 python packages\dsh-antigravity-kit\python\antigravity_bridge.py --quota
+
+:: 多轮：沿用上一次返回的 conversation_id
+python packages\dsh-antigravity-kit\python\antigravity_bridge.py --conversation <conversation_id> "继续追问"
 ```
 
 ## 配置

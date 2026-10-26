@@ -28,6 +28,9 @@ from typing import Any
 BASE_DIR = Path(__file__).resolve().parent
 POWERSHELL = r"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe"
 
+# Placeholder id used to probe a port: no real conversation can match it.
+PROBE_CONVERSATION_ID = "0" * 8 + "-0000-0000-0000-" + "0" * 12
+
 
 def _ensure_env() -> None:
     if not os.environ.get("USERPROFILE"):
@@ -164,7 +167,7 @@ def _test_port(target: dict[str, Any], port: int) -> bool:
     env["ANTIGRAVITY_LS_ADDRESS"] = f"127.0.0.1:{port}"
     try:
         proc = subprocess.run(
-            [target["exe"], "agentapi", "get-conversation-metadata", "00000000-0000-0000-0000-000000000000"],
+            [target["exe"], "agentapi", "get-conversation-metadata", PROBE_CONVERSATION_ID],
             capture_output=True,
             text=True,
             encoding="utf-8",
@@ -262,10 +265,11 @@ def _extract_text(payload: bytes) -> str:
     return ""
 
 
-def _conversation_text(conversation_id: str, app_data_dir: str) -> tuple[str, int]:
+def _conversation_state(conversation_id: str, app_data_dir: str) -> tuple[str, int, int]:
+    """Return (latest assistant text, its step index, max step index)."""
     db = Path.home() / ".gemini" / app_data_dir / "conversations" / f"{conversation_id}.db"
     if not db.is_file():
-        return "", -1
+        return "", -1, -1
     try:
         con = sqlite3.connect(f"file:{db.as_posix()}?mode=ro", uri=True, timeout=1)
         try:
@@ -277,44 +281,88 @@ def _conversation_text(conversation_id: str, app_data_dir: str) -> tuple[str, in
         finally:
             con.close()
     except sqlite3.Error:
-        return "", -1
+        return "", -1, -1
     text = ""
+    text_idx = -1
     for idx, step_type, _status, payload in rows:
         if int(step_type) == 15 and payload:
             value = _extract_text(bytes(payload))
             if value:
                 text = value
-    return text, int(rows[-1][0]) if rows else -1
+                text_idx = int(idx)
+    max_idx = int(rows[-1][0]) if rows else -1
+    return text, text_idx, max_idx
 
+
+def _conversation_text(conversation_id: str, app_data_dir: str) -> tuple[str, int]:
+    """Backward-compatible view: (latest assistant text, max step index)."""
+    text, _text_idx, max_idx = _conversation_state(conversation_id, app_data_dir)
+    return text, max_idx
 
 def _wait_for_text(
     conversation_id: str,
     app_data_dir: str,
     timeout: float,
     quiet_seconds: float = 3.0,
+    after_index: int = -1,
 ) -> str:
+    """Wait for assistant text whose step index is greater than ``after_index``."""
     deadline = time.monotonic() + timeout
-    last_text = ""
-    last_idx = -1
+    text = ""
+    text_idx = -1
+    last_max = -1
     last_change = time.monotonic()
     while time.monotonic() < deadline:
-        text, idx = _conversation_text(conversation_id, app_data_dir)
-        if idx != last_idx:
-            last_idx = idx
+        current_text, current_text_idx, max_idx = _conversation_state(conversation_id, app_data_dir)
+        if max_idx != last_max:
+            last_max = max_idx
             last_change = time.monotonic()
-        if text:
-            last_text = text
-        if last_text and time.monotonic() - last_change >= quiet_seconds:
-            return last_text
+        if current_text and current_text_idx > after_index:
+            if current_text != text:
+                text = current_text
+                text_idx = current_text_idx
+                last_change = time.monotonic()
+        if text and time.monotonic() - last_change >= quiet_seconds:
+            return text
         time.sleep(0.5)
-    if last_text:
-        return last_text
+    if text:
+        return text
     raise TimeoutError(
         f"等待 Antigravity 回复超时（会话 {conversation_id}）。"
         "任务可能仍在运行，可到 Antigravity 界面查看。"
     )
 
-
+def _send_message(
+    target: dict[str, Any],
+    env: dict[str, str],
+    conversation_id: str,
+    message: str,
+    timeout: float,
+) -> dict[str, Any]:
+    """Append one message to an existing conversation and wait for its reply."""
+    _before_text, before_idx = _conversation_text(conversation_id, target["app_data_dir"])
+    proc = subprocess.run(
+        [target["exe"], "agentapi", "send-message", conversation_id, message],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        timeout=60,
+        env=env,
+    )
+    output = (proc.stdout or "").strip()
+    if not output:
+        raise RuntimeError((proc.stderr or "agentapi send-message returned no output").strip())
+    data = json.loads(output)
+    if data.get("error"):
+        raise RuntimeError(data["error"])
+    text = _wait_for_text(
+        conversation_id,
+        target["app_data_dir"],
+        timeout,
+        after_index=before_idx,
+    )
+    return {"conversation_id": conversation_id, "text": text}
 
 def _quota(target: dict[str, Any]) -> dict[str, Any]:
     """Read the account's model quota summary from the local language server."""
@@ -391,6 +439,7 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--json", action="store_true", help="输出 JSON")
     parser.add_argument("--no-wait", action="store_true", help="只创建对话，不等待回复")
     parser.add_argument("--target", help="指定 app_data_dir，如 antigravity 或 antigravity-ide")
+    parser.add_argument("--conversation", help="向已有会话继续发送消息（多轮）")
     parser.add_argument("--quota", action="store_true", help="查询账户模型额度")
     parser.add_argument("--list", action="store_true", help="列出检测到的 Antigravity 实例")
     parser.add_argument("--debug", action="store_true", help="出错时打印完整堆栈")
@@ -451,6 +500,13 @@ def main() -> int:
         target, project_id = _pick_target(workspace, args.target)
         env = _env_for(target, project_id)
         env["ANTIGRAVITY_LS_ADDRESS"] = f"127.0.0.1:{target['port']}"
+        if args.conversation:
+            result = _send_message(target, env, args.conversation, prompt, args.timeout)
+            if args.json:
+                print(json.dumps(result, ensure_ascii=False))
+            else:
+                print(result["text"])
+            return 0
         title = args.title or ("Antigravity: " + prompt.replace("\n", " ")[:50])
         command = [
             target["exe"],

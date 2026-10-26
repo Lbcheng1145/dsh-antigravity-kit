@@ -114,16 +114,17 @@ class Handler(BaseHTTPRequestHandler):
             workspace = str(body.get("workspace") or os.getcwd())
             model = str(body.get("model") or "flash")
             timeout = float(body.get("timeoutSeconds") or 300)
-            data = run_bridge(
-                [
-                    "--workspace", workspace,
-                    "--model", model,
-                    "--timeout", str(timeout),
-                    "--json",
-                    prompt,
-                ],
-                timeout + 30,
-            )
+            conversation_id = str(body.get("conversationId") or "").strip()
+            args = [
+                "--workspace", workspace,
+                "--model", model,
+                "--timeout", str(timeout),
+                "--json",
+            ]
+            if conversation_id:
+                args += ["--conversation", conversation_id]
+            args.append(prompt)
+            data = run_bridge(args, timeout + 30)
             self._json(200, {
                 "conversation_id": data.get("conversation_id") or "",
                 "text": data.get("text") or "",

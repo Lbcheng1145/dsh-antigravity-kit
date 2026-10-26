@@ -35,11 +35,11 @@ window.__ModuleLoader__.load({
       return withServerRetry(() => request('/quota?workspace=' + encodeURIComponent(workspace)));
     }
 
-    async function apiRun(prompt, workspace, model, timeoutSeconds) {
+    async function apiRun(prompt, workspace, model, timeoutSeconds, conversationId) {
       return request('/run', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt, workspace, model, timeoutSeconds }),
+        body: JSON.stringify({ prompt, workspace, model, timeoutSeconds, conversationId: conversationId || '' }),
       });
     }
 
@@ -63,6 +63,8 @@ window.__ModuleLoader__.load({
       clear: '清空',
       copy: '复制结果',
       copied: '已复制',
+      newSession: '新会话',
+      continuing: '继续会话',
       loading: '正在读取额度...',
       noQuota: '暂无额度信息',
       error: '错误',
@@ -99,6 +101,8 @@ window.__ModuleLoader__.load({
       clear: 'Clear',
       copy: 'Copy result',
       copied: 'Copied',
+      newSession: 'New session',
+      continuing: 'Continuing',
       loading: 'Loading quota...',
       noQuota: 'No quota information',
       error: 'Error',
@@ -251,6 +255,7 @@ window.__ModuleLoader__.load({
       const [quotaLoading, setQuotaLoading] = React.useState(true);
       const [running, setRunning] = React.useState(false);
       const [result, setResult] = React.useState(null);
+      const [conversationId, setConversationId] = React.useState('');
       const [error, setError] = React.useState('');
       const [copied, setCopied] = React.useState(false);
 
@@ -277,8 +282,9 @@ window.__ModuleLoader__.load({
         setResult(null);
         setError('');
         try {
-          const data = await apiRun(prompt.trim(), workspace, model, 300);
+          const data = await apiRun(prompt.trim(), workspace, model, 300, conversationId);
           setResult(data);
+          if (data && data.conversation_id) setConversationId(data.conversation_id);
         } catch (err) {
           setError(err && err.message ? err.message : String(err));
         } finally {
@@ -370,9 +376,16 @@ window.__ModuleLoader__.load({
               h('button', {
                 type: 'button',
                 style: s.secondary,
-                onClick: () => { setPrompt(''); setResult(null); setError(''); },
+                onClick: () => { setPrompt(''); setResult(null); setError(''); setConversationId(''); },
                 disabled: running,
               }, t('clear')),
+              h('button', {
+                type: 'button',
+                style: s.secondary,
+                onClick: () => { setConversationId(''); setResult(null); setError(''); },
+                disabled: running || !conversationId,
+                title: conversationId || '',
+              }, t('newSession')),
               running ? h('span', { style: { color: colors.muted, fontSize: 12 } }, t('running')) : null
             ),
             error ? h('div', { style: { ...s.error, marginTop: 12 } }, t('error') + ': ' + error) : null
@@ -386,7 +399,7 @@ window.__ModuleLoader__.load({
             result
               ? h('div', null,
                   h('pre', { style: s.result }, result.text || t('resultEmpty')),
-                  result.conversation_id ? h('div', { style: s.meta }, t('conversation') + ': ' + result.conversation_id + ' · ' + t('model') + ': ' + modelLabel) : null
+                  result.conversation_id ? h('div', { style: s.meta }, t('conversation') + ': ' + result.conversation_id + ' · ' + t('model') + ': ' + modelLabel + ' · ' + t('continuing')) : null
                 )
               : h('div', { style: s.empty }, t('resultEmpty'))
           )

@@ -1,6 +1,6 @@
 {
   "name": "dsh-antigravity-kit",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "description": "Antigravity dashboard for DSH: model quota, model selection, and task execution.",
   "type": "module",
   "license": "MIT",
