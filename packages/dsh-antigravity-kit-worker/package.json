@@ -1,5 +1,5 @@
 {
-  "name": "dsh-antigravity-worker",
+  "name": "dsh-antigravity-kit-worker",
   "version": "1.2.0",
   "description": "Subagent-facing worker that delegates tasks to the running Antigravity client.",
   "type": "module",

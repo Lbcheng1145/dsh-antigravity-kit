@@ -1,15 +1,17 @@
-# dsh-antigravity
+# dsh-antigravity-kit
 
 在 [DSH](https://github.com/deepseek-ai/deepseek-harness) 中使用正在运行的 Google Antigravity 客户端执行任务，并查看账户模型额度。
 
 不需要 Gemini API Key：任务通过 Antigravity 自带的 `agentapi` 创建真实对话，复用客户端登录态。
 
+> 本项目名为 **dsh-antigravity-kit**，包含页面插件与子代理 worker 两个包。
+
 ## 组成
 
 | 包 | 作用 |
 |---|---|
-| `packages/dsh-antigravity` | DSH 页面插件：额度面板、模型选择、任务执行 |
-| `packages/dsh-antigravity-worker` | 子代理 worker：给父级和子代理提供 `antigravity_run` / `antigravity_quota` 工具 |
+| `packages/dsh-antigravity-kit` | DSH 页面插件：额度面板、模型选择、任务执行 |
+| `packages/dsh-antigravity-kit-worker` | 子代理 worker：给父级和子代理提供 `antigravity_run` / `antigravity_quota` 工具 |
 | `python/` | 本机服务：桥接 Antigravity `agentapi` 与额度接口 |
 
 页面通过 `http://127.0.0.1:8765` 与本机服务通信，不接入 DSH 的共享 remote 服务，避免影响账户与设置页。
@@ -40,8 +42,8 @@ setx ANTIGRAVITY_SDK_HOME "%LOCALAPPDATA%\AntigravitySDK"
 ### 2. DSH 插件
 
 ```bat
-dsh plugin --profile desktop add <本仓库 packages/dsh-antigravity 的绝对路径>
-dsh plugin --profile desktop add <本仓库 packages/dsh-antigravity-worker 的绝对路径>
+dsh plugin --profile desktop add <本仓库 packages/dsh-antigravity-kit 的绝对路径>
+dsh plugin --profile desktop add <本仓库 packages/dsh-antigravity-kit-worker 的绝对路径>
 ```
 
 然后重启 DSH。

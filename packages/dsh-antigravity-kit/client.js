@@ -1,5 +1,5 @@
 window.__ModuleLoader__.load({
-  id: 'dsh-antigravity',
+  id: 'dsh-antigravity-kit',
   factory(require) {
     const React = require('react');
     const h = React.createElement;
